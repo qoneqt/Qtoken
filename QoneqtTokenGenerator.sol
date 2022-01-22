@@ -383,7 +383,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract TokenGenerator is Context, IERC20 {
+contract QoneqtTokenGenerator is Context, IERC20 {
     using SafeMath for uint256;
     using Address for address;
     
