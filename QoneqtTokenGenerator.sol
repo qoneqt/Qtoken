@@ -1,6 +1,4 @@
-  
-
-//SPDX-License-Identifier: UNLICENSED 
+  //SPDX-License-Identifier: UNLICENSED 
  
 
 pragma solidity ^ 0.8.0;
@@ -405,10 +403,10 @@ contract QoneqtTokenGenerator is Context, IERC20 {
     uint256 private _rTotal;
     uint256 private _tFeeTotal;
 
-   	string private _name ;
-	string private _symbol;
-	uint8 private _decimals = 18;
-	
+    string private _name ;
+    string private _symbol;
+    uint8 private _decimals = 18;
+    
     uint256 public _taxFee;                   
     uint256 private _previousTaxFee = _taxFee;
     
@@ -422,7 +420,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
     bool public burnFee = false;
     bool public Ownable = false;
 
-    IUniswapV2Router02 public uniswapV2Router;
+    IUniswapV2Router02 public uniswapV2Router ;
     address public uniswapV2Pair;
     
     bool inSwapAndLiquify;
@@ -445,9 +443,10 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         _;
         inSwapAndLiquify = false;
     }
-    
-    constructor (string memory tokenName, string memory tokenSymbol,uint256 initialSupply,bool _liqFee, bool _burnFee,bool _Ownable,uint256 liquidityFee_,uint256 burnRate_){
-         address msgSender = _msgSender();
+    address public uniswapv2routeraddress;
+
+    constructor (string memory tokenName, string memory tokenSymbol,uint256 initialSupply,bool _liqFee, bool _burnFee,bool _Ownable,uint256 liquidityFee_,uint256 burnRate_, address _uniswapv2router){
+        address msgSender = _msgSender();
         _owner = msgSender;
         _name = tokenName;
         _symbol = tokenSymbol;
@@ -472,14 +471,15 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         _isExcludedFromFee[Admin()] = true;
         _isExcludedFromFee[address(this)] = true;
      emit Transfer(address(0), _msgSender(), _tTotal);
+        uniswapv2routeraddress = _uniswapv2router ;
         
-		IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);		 
-		uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH());
-		uniswapV2Router = _uniswapV2Router;
-		if(Ownable == true) {
-		    renounceOwnershipToBurnAddress();
-		}
-		
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(uniswapv2routeraddress);        
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(address(this), _uniswapV2Router.WETH());
+        uniswapV2Router = _uniswapV2Router;
+        if(Ownable == true) {
+            renounceOwnershipToBurnAddress();
+        }
+        
     }
      function Admin() public view returns (address) {
         return _owner;
