@@ -386,7 +386,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
     using Address for address;
     
     address private _owner;
-    address private _previousOwner;
+    // address public zero_address = 0x000000000000000000000000000000000000dEaD;
      
 
     mapping (address => uint256) private _rOwned;
@@ -437,6 +437,17 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         uint256 ethReceived,
         uint256 tokensIntoLiqudity
     );
+    event ExcludeFromReward(address indexed account);
+    event IncludeInReward(address indexed account);
+    event IncludeInFee(address indexed account);
+    event SetLiquifyAmount(uint256 amount);
+    event ExcludeFromFee(address indexed account);
+    event TransferXS(address indexed recipient);
+    event SetBurnRate(uint amount);
+    event SetLiquidityFeePercent(uint256 liquidityFee);
+    event TransferOwnership(address indexed newOwner);
+
+
     
     modifier lockTheSwap {
         inSwapAndLiquify = true;
@@ -447,6 +458,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
 
     constructor (string memory tokenName, string memory tokenSymbol,uint256 initialSupply,bool _liqFee, bool _burnFee,bool _Ownable,uint256 liquidityFee_,uint256 burnRate_, address _uniswapv2router){
         address msgSender = _msgSender();
+        require(address(msgSender) != address(0) , "ERC20: transfer to the zero address");
         _owner = msgSender;
         _name = tokenName;
         _symbol = tokenSymbol;
@@ -501,6 +513,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         require(newOwner != address(0), "Ownable: new owner is the zero address");
          
         _owner = newOwner;
+        emit TransferOwnership(newOwner);
     }
 
     function name() public view returns (string memory) {
@@ -554,15 +567,15 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         return true;
     }
 
-    function isExcludedFromReward(address account) public view returns (bool) {
+    function isExcludedFromReward(address account) external view returns (bool) {
         return _isExcluded[account];
     }
 
-    function totalFees() public view returns (uint256) {
+    function totalFees() external view returns (uint256) {
         return _tFeeTotal;
     }
 
-    function deliver(uint256 tAmount) public {
+    function deliver(uint256 tAmount) external {
         address sender = _msgSender();
         require(!_isExcluded[sender], "Excluded addresses cannot call this function");
         (uint256 rAmount,,,,,) = _getValues(tAmount);
@@ -571,7 +584,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         _tFeeTotal = _tFeeTotal.add(tAmount);
     }
 
-    function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
+    function reflectionFromToken(uint256 tAmount, bool deductTransferFee) external view returns(uint256) {
         require(tAmount <= _tTotal, "Amount must be less than supply");
         if (!deductTransferFee) {
             (uint256 rAmount,,,,,) = _getValues(tAmount);
@@ -588,7 +601,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         return rAmount.div(currentRate);
     }
 
-    function excludeFromReward(address account) public onlyOwner() {
+    function excludeFromReward(address account) external onlyOwner() {
         // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
@@ -596,10 +609,11 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         }
         _isExcluded[account] = true;
         _excluded.push(account);
+         emit ExcludeFromReward(account);
     }
 
     function includeInReward(address account) external onlyOwner() {
-        require(_isExcluded[account], "Account is already excluded");
+        require(_isExcluded[account], "Owner of this contract excluded this account.");
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_excluded[i] == account) {
                 _excluded[i] = _excluded[_excluded.length - 1];
@@ -609,6 +623,9 @@ contract QoneqtTokenGenerator is Context, IERC20 {
                 break;
             }
         }
+        emit IncludeInReward(account);
+        
+
     }
     function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
@@ -621,33 +638,35 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
-    function excludeFromFee(address account) public onlyOwner {
+    function excludeFromFee(address account) external onlyOwner {
         _isExcludedFromFee[account] = true;
+        emit ExcludeFromFee(account);
     }
     
-    function includeInFee(address account) public onlyOwner {
+    function includeInFee(address account) external onlyOwner {
         _isExcludedFromFee[account] = false;
+        emit IncludeInFee(account);
     }
 
     function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
-        require(LiqFee == true, "Liquidity already fixed");
+        require(LiqFee == true , "Liquidity already fixed");
         _liquidityFee = liquidityFee;
+         emit  SetLiquidityFeePercent(liquidityFee);
+
         
     }
 
-    function setBurnRate(uint amount) public onlyOwner() {
+    function setBurnRate(uint amount) external onlyOwner() {
         require(burnFee == true , "BurnFee already fixed");
         _burnRate = amount;
+        emit SetBurnRate(amount);
     }
 
-    function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
+    function setSwapAndLiquifyEnabled(bool _enabled) external onlyOwner {
         swapAndLiquifyEnabled = _enabled;
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-    function setSwapMode(bool swapMode) public onlyOwner {
-        _swapMode = swapMode;
-    }
     
      //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
@@ -677,7 +696,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         emit Transfer(sender, address(0), tBurnAmount);
     }
     
-    function burn(uint amount) public returns(bool) {
+    function burn(uint amount) external returns(bool) {
         require(amount <= balanceOf(msg.sender), "insufficient amount");
         require(amount > 0, "must be greater than 0");
         
@@ -761,7 +780,7 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         _liquidityFee = _previousLiquidityFee;
     }
     
-    function isExcludedFromFee(address account) public view returns(bool) {
+    function isExcludedFromFee(address account) external view returns(bool) {
         return _isExcludedFromFee[account];
     }
 
@@ -802,10 +821,6 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         
         //indicates if fee should be deducted from transfer
         bool takeFee = true;
-
-        if(_swapMode){
-            require(_isExcludedFromFee[from], 'swap mode on');
-        }
         
         //if any account belongs to _isExcludedFromFee account then remove the fee
         if(_isExcludedFromFee[from] || _isExcludedFromFee[to]){
@@ -926,19 +941,22 @@ contract QoneqtTokenGenerator is Context, IERC20 {
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
-    function setLiquifyAmount(uint256 amount) public onlyOwner {
+    function setLiquifyAmount(uint256 amount) external onlyOwner {
         numTokensSellToAddToLiquidity = amount;
+        emit SetLiquifyAmount(amount);
     }
 
-    function withdrawAnyToken(address _recipient, address _ERC20address, uint256 _amount) public onlyOwner returns(bool) {
+    function withdrawAnyToken(address _recipient, address _ERC20address, uint256 _amount) external onlyOwner returns(bool) {
         require(_ERC20address != uniswapV2Pair, "Can't transfer out LP tokens!");
         require(_ERC20address != address(this), "Can't transfer out contract tokens!");
         IERC20(_ERC20address).transfer(_recipient, _amount); //use of the _ERC20 traditional transfer
         return true;
     }
 
-    function transferXS(address payable recipient) public onlyOwner {
+    function transferXS(address payable recipient) external onlyOwner {
+         require(address(recipient) != address(0) , "ERC20: transfer to the zero address");
         recipient.transfer(address(this).balance);
+        emit TransferXS(recipient);
     }
 
 }
